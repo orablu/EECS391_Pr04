@@ -248,4 +248,21 @@ public class ProbAgent extends Agent {
 	public void loadPlayerData(InputStream is) {
 		//this agent lacks learning and so has nothing to persist.
 	}
+
+	private float[][] updateProbabilityMap(int x, int y, boolean hit, float[][] old, boolean[][] viewHasTurret) {
+		float[][] map = copyMap(old);
+
+
+		return map;
+	}
+
+	private float[][] copyMap(float[][] map) {
+		int x = map.length;
+		int y = map[0].length;
+	    int[][] newMap = new int[x][y];
+	    for (int i = 0; i < x; i++) {
+	        System.arraycopy(map[i], 0, newMap[i], 0, y);
+	    }
+	    return newMap; 
+	}
 }
