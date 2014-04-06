@@ -45,6 +45,8 @@ public class ProbAgent extends Agent {
 	private static final int GOLD_REQUIRED = 2000;	
 
 	private int step;
+	private int startingPeasants = 0;
+	private Map<UnitView, Integer> peasantHealth = new HashMap<UnitView, Integer>();
 	
 	public ProbAgent(int playernum, String[] arguments) {
 		super(playernum);
@@ -56,6 +58,15 @@ public class ProbAgent extends Agent {
 	@Override
 	public Map<Integer, Action> initialStep(StateView newstate, History.HistoryView statehistory) {
 		step = 0;
+		
+		for (UnitView unit : currentState.getUnits(playernum)) {
+			String unitTypeName = unit.getTemplateView().getName();
+			if(unitTypeName.equals("Peasant")) {
+				startingPeasants++;
+				peasantHealth.put(unit, unit.getHP());
+			}
+		}
+		
 		return middleStep(newstate, statehistory);
 	}
 
@@ -68,18 +79,31 @@ public class ProbAgent extends Agent {
 		
 		int currentGold = currentState.getResourceAmount(0, ResourceType.GOLD);
 
-		List<Integer> myUnitIds = currentState.getUnitIds(playernum);
 		List<UnitView> peasants = new ArrayList<UnitView>();
 		List<UnitView> townhalls = new ArrayList<UnitView>();
-		for (int i = 0; i < myUnitIds.size(); i++) {
-			int id = myUnitIds.get(i);
-			UnitView unit = currentState.getUnit(id);
+		
+		for (UnitView unit : currentState.getUnits(playernum)) {
 			String unitTypeName = unit.getTemplateView().getName();
-			System.out.println("Unit Type Name: " + unitTypeName);
-			if(unitTypeName.equals("TownHall"))
+			if(unitTypeName.equals("TownHall")) {
 				townhalls.add(unit);
-			if(unitTypeName.equals("Peasant"))
+			} else if(unitTypeName.equals("Peasant")) {
 				peasants.add(unit);
+			}
+		}
+		
+		// Find all the peasants that have taken damage
+		List<UnitView> hitList = new ArrayList<UnitView>();
+		for (UnitView peasant : peasants) {
+			if (peasantHealth.get(peasant) < peasant.getHP()) {
+				hitList.add(peasant);
+			}
+		}
+		
+		// Build a new peasant if we have lost any
+		if (peasants.size() < startingPeasants && currentGold >= peasants.get(0).getTemplateView().getGoldCost()) {
+			int townhallID = townhalls.get(0).getID();
+			int peasantTemplateID = currentState.getTemplate(playernum, "Peasant").getID();
+			builder.put(townhallID, Action.createCompoundProduction(townhallID, peasantTemplateID));
 		}
 		
 		return builder;
@@ -112,7 +136,7 @@ public class ProbAgent extends Agent {
 		// Assign absolute values to tiles out of FOW.
 		updateOutOfFOW(map, x, y, oofowHasTurret);
 
-		// Assign relative values to nearby turrets dependent on wether or not footnam was hit.
+		// Assign relative values to nearby turrets dependent on whether or not footman was hit.
 		updateFromHit(map, x, y, hit);
 
 		return map;
@@ -143,6 +167,56 @@ public class ProbAgent extends Agent {
 	private List<Pair<Integer, Integer>> getBestPath(float[][] map, Pair<Integer, Integer> curLocation, Pair<Integer, Integer> dest) {
 		List<Pair<Integer, Integer>> path =  new ArrayList<Pair<Integer, Integer>>();
 		// TODO: do something here
+		
+		Node current = new Node(curLocation.getX(), curLocation.getY(), map[curLocation.getX()][curLocation.getY()]);
+		Node target = new Node(dest.getX(), dest.getY(), map[dest.getX()][dest.getY()]);
+		List<Node> openSet = new ArrayList<>();
+        List<Node> closedSet = new ArrayList<>();
+        
+        while (true) {
+            openSet.remove(current);
+            List<Node> adjacent = getAdjacentNodes(map, current, closedSet);
+
+            // Find the adjacent node with the lowest heuristic cost.
+            for (Node node : adjacent) {
+//                System.out.println("\tAdjacent Node: " + current);
+                openSet.add(new Node(node, current));
+            }
+
+            // Exit search if done.
+            if (openSet.isEmpty()) {
+                System.out.printf("Target (%d, %d) is unreachable from position (%d, %d).\n",
+                                target.getX(), target.getY(), curLocation.getX(), curLocation.getY());
+                return null;
+            } else if (isAdjacent(current, target)) {
+                break;
+            }
+
+            // This node has been explored now.
+            closedSet.add(current);
+
+            // Find the next open node with the lowest cost.
+            Node next = openSet.get(0);
+            for (Node node : openSet) {
+                if (node.getCost() < next.getCost()) {
+                    next = node;
+                }
+            }
+//            System.out.println("Moving to node: " + current);
+            current = next;
+        }
+        
 		return path;
+	}
+
+	private boolean isAdjacent(Node current, Node target) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	private List<Node> getAdjacentNodes(float[][] map, Node current,
+			List<Node> closedSet) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

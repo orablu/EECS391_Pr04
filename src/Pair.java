@@ -22,4 +22,21 @@ public class Pair<T, U> {
     public U getY() {
         return y;
     }
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == null) {
+            return false;
+		}
+        if (obj == this) {
+            return true;
+        }
+        if (!(obj instanceof Pair)) {
+            return false;
+        }
+        
+        Pair<?, ?> pair = (Pair<?,?>) obj;
+        return x.equals(pair.getX()) && y.equals(pair.getY());
+	}
+
 }
