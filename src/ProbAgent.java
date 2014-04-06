@@ -249,11 +249,28 @@ public class ProbAgent extends Agent {
 		//this agent lacks learning and so has nothing to persist.
 	}
 
-	private float[][] updateProbabilityMap(int x, int y, boolean hit, float[][] old, boolean[][] viewHasTurret) {
+	private float[][] updateProbabilityMap(int x, int y, boolean hit, float[][] old, boolean[][] oofowHasTurret) {
 		float[][] map = copyMap(old);
 
+		// Assign absolute values to tiles out of FOW.
+		updateOutOfFOW(map, x, y, oofowHasTurret);
+
+		// Assign relative values to nearby turrets dependent on wether or not footnam was hit.
+		updateFromHit(map, x, y, hit);
 
 		return map;
+	}
+
+	private void updateOutOfFOW(float[][] map, int x, int y, boolean[][] turret) {
+		for (int r = 0; r < turret.length; r++) {
+			for (int c = 0; c < turret[r].length; c++) {
+				map[x+r][y+c] = turret[r][c] ? 1 : 0;
+			}
+		}
+	}
+
+	private void updateFromHit(float[][] map, int x, int y, boolean hit) {
+		// TODO: Implement
 	}
 
 	private float[][] copyMap(float[][] map) {
