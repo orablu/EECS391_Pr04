@@ -113,14 +113,6 @@ public class ProbAgent extends Agent {
 			}
 		}
 		
-		// Find all the peasants that have taken damage
-		List<UnitView> hitList = new ArrayList<UnitView>();
-		for (UnitView peasant : peasants) {
-			if (peasantHealth.get(peasant) < peasant.getHP()) {
-				hitList.add(peasant);
-			}
-		}
-		
 		// Build a new peasant if we have lost any
 		if (peasants.size() < startingPeasants && currentGold >= peasants.get(0).getTemplateView().getGoldCost()) {
 			int townhallID = townhalls.get(0).getID();
@@ -128,13 +120,40 @@ public class ProbAgent extends Agent {
 			builder.put(townhallID, Action.createCompoundProduction(townhallID, peasantTemplateID));
 		}
 		
+		// Find all the peasants that have taken damage
+		List<UnitView> hitList = new ArrayList<UnitView>();
+		for (UnitView peasant : peasants) {
+			int x = peasant.getXPosition();
+			int y = peasant.getYPosition();
+			
+			updatePeasantViewRange(x, y);
+			board.incrementVisits(x, y);
+			
+			if (peasantHealth.get(peasant) < peasant.getHP()) {
+				hitList.add(peasant);
+				board.incrementHits(x, y);
+				updateProbabilities(new Pair<Integer, Integer>(x, y), true);
+			} else {
+				updateProbabilities(new Pair<Integer, Integer>(x, y), false);
+			}
+		}
+		
 		return builder;
 	}
+
 
 	@Override
 	public void terminalStep(StateView newstate, History.HistoryView statehistory) {
 		step++;
 		
+	}
+	
+	private void updatePeasantViewRange(int x, int y) {
+		for(int i = -PEASANT_RANGE; i <= PEASANT_RANGE; i++) {
+			for(int j = -PEASANT_RANGE; j <= PEASANT_RANGE; j++) {
+				updateSeen(x + i, y + j);
+			}
+		}
 	}
 	
 	private void updateSeen(int x, int y) {
@@ -187,7 +206,7 @@ public class ProbAgent extends Agent {
 				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
 					int x = location.getX() + i;
 					int y = location.getY() + j;
-					if(currentState.inBounds(x, y)) {
+					if(currentState.inBounds(x, y) && !board.getSeen(x, y)) {
 						// TODO
 					}
 				}
@@ -197,7 +216,7 @@ public class ProbAgent extends Agent {
 				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
 					int x = location.getX() + i;
 					int y = location.getY() + j;
-					if(currentState.inBounds(x, y)) {
+					if(currentState.inBounds(x, y) && !board.getSeen(x, y)) {
 						// TODO
 					}
 				}
