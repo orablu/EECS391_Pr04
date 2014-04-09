@@ -5,6 +5,11 @@ public class Node {
 	private float probability;
 	private Node parent;
 	
+	public Node(int x, int y) {
+		this.x = x;
+		this.y = y;
+	}
+	
 	public Node(int x, int y, float probability) {
 		this.x = x;
 		this.y = y;
@@ -15,6 +20,13 @@ public class Node {
 		this.x = node.x;
 		this.y = node.y;
 		this.probability = node.probability;
+		this.parent = parent;
+	}
+	
+	public Node(int x, int y, float probability, Node parent) {
+		this.x = x;
+		this.y = y;
+		this.probability = probability;
 		this.parent = parent;
 	}
 
@@ -50,22 +62,22 @@ public class Node {
         return x == node.getX() && y == node.getY();
 	}
 
-	public int getCost() {
+	public float getCost() {
 		return this.getHeuristicCost() + this.getAccumulatedCost();
 	}
 
-	private int getAccumulatedCost() {
+	private float getAccumulatedCost() {
 		// TODO accumulate probabilities in some way
-		int accumCost;
+		float accumCost;
 		if (parent == null) {
-            accumCost = 0;
+            accumCost = probability;
 		} else {
-//            accumCost = parent.getAccumulatedCost() + 1;
+            accumCost = parent.getAccumulatedCost() + probability;
 		}
-		return 0;
+		return accumCost;
 	}
 
-	private int getHeuristicCost() {
+	private float getHeuristicCost() {
 		// TODO Heuristic this somehow
 		return 0;
 	}
