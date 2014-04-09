@@ -191,7 +191,7 @@ public class ProbAgent extends Agent {
 				int curX = x + i;
 				int curY = y + j;
 				if(currentState.inBounds(curX, curY)) {
-					probability += board.getTowerProbability(curX, curY);
+					probability = (probability + board.getTowerProbability(curX, curY)) - (probability * board.getTowerProbability(curX, curY));
 				}
 			}
 		}
