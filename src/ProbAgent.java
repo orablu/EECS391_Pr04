@@ -150,8 +150,37 @@ public class ProbAgent extends Agent {
 		}
 	}
 
+	private static final int TOWER_RANGE = 4;
+	private static final float ACCURACY = 0.75;
 	private void updateFromHit(float[][] map, int x, int y, boolean hit) {
-		// TODO: Implement
+		float[][] old = copyMap(map);
+		int fromx = Math.max(x - TOWER_RANGE, 0);
+		int tox   = Math.min(old.length, x + TOWER_RANGE);
+		int fromy = Math.max(y - TOWER_RANGE, 0);
+		int toy   = Math.min(old[0].length, y + TOWER_RANGE);
+		for (int r = fromx; r < tox; r++) {
+			for (int c = fromy; c < toy; c++) {
+				// P(T|H) = P(H|T)*P(T)/(P(H|T)*P(T)+P(H|N)*P(N))
+				float accuracy = hit ? ACCURACY : 1 - ACCURACY;
+
+				// This is totally wrong
+				// P(H|N) = SUM(P(H|O)*P(O))
+				float phn = 0;
+				for (int rr = fromx; rr < tox; rr++) {
+					for (int cc = fromy; cc < toy; cc++) {
+						if (rr == r && cc == c) continue;
+						phn += accuracy * old[rr][cc];
+					}
+				}
+
+				// This too
+				// P(H|T) = P(H)+P(H|N)
+				float pht = accuracy + phn;
+
+				// P(T|H) = P(H|T)*P(T)/(P(H|T)*P(T)+P(H|N)*P(N))
+				map[r][c] *= pht / (pht * old[r][c] + phn * (1 - old[r][c]));
+			}
+		}
 	}
 
 	private float[][] copyMap(float[][] map) {
