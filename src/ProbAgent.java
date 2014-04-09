@@ -223,71 +223,81 @@ public class ProbAgent extends Agent {
 			}
 		}
 	}
-	
 
-	private float[][] updateProbabilityMap(Pair<Integer, Integer> location, boolean hit, float[][] old, boolean[][] oofowHasTurret) {
-		float[][] map = copyMap(old);
-		int x = location.getX();
-		int y = location.getY();
-
-		// Assign absolute values to tiles out of FOW.
-		updateOutOfFOW(map, x, y, oofowHasTurret);
-
-		// Assign relative values to nearby turrets dependent on whether or not footman was hit.
-		updateFromHit(map, x, y, hit);
-
-		return map;
-	}
-
-	private void updateOutOfFOW(float[][] map, int x, int y, boolean[][] turret) {
-		for (int r = 0; r < turret.length; r++) {
-			for (int c = 0; c < turret[r].length; c++) {
-				map[x+r][y+c] = turret[r][c] ? 1 : 0;
-			}
-		}
-	}
-
-	private static final int TOWER_RANGE = 4;
 	private static final float ACCURACY = 0.75;
-	private void updateFromHit(float[][] map, int x, int y, boolean hit) {
-		float[][] old = copyMap(map);
+	private void updateFromHit(GameBoard map, int x, int y, boolean hit) {
+		float[][] old = map.getBoardCopy();
 		int fromx = Math.max(x - TOWER_RANGE, 0);
 		int tox   = Math.min(old.length, x + TOWER_RANGE);
 		int fromy = Math.max(y - TOWER_RANGE, 0);
 		int toy   = Math.min(old[0].length, y + TOWER_RANGE);
 		for (int r = fromx; r < tox; r++) {
 			for (int c = fromy; c < toy; c++) {
-				// P(T|H) = P(H|T)*P(T)/(P(H|T)*P(T)+P(H|N)*P(N))
-				float accuracy = hit ? ACCURACY : 1 - ACCURACY;
+				if (inView(r, c, x, y)) continue; // Only need to update out-of-view cells.
 
-				// This is totally wrong
-				// P(H|N) = SUM(P(H|O)*P(O))
-				float phn = 0;
-				for (int rr = fromx; rr < tox; rr++) {
-					for (int cc = fromy; cc < toy; cc++) {
-						if (rr == r && cc == c) continue;
-						phn += accuracy * old[rr][cc];
+				float phn, pht;
+				if (hit) {
+					// P(H|N) = 1 - P(S|N)
+					phn = 1;
+					for (int rr = fromx; rr < tox; rr++) {
+						for (int cc = fromy; cc < toy; cc++) {
+							if (rr == r && cc == c) continue;
+							// P(S) = P(N)+(P(T)*(1-P(H)))
+							phn *= (1f - old[rr][cc]) + (old[rr][cc] * (1f - ACCURACY));
+						}
 					}
+					phn = 1f - phn;
+
+					// P(H|T): same as above, but without skipping r, c
+					// Simplifies to 1-((1-P(H|N))*P(M)) since tower existing is given.
+					pht = 1f - ((1f - phn) * (1f - ACCURACY));
+				} else {
+					// P(S|N) = P(S)
+					phn = 1;
+					for (int rr = fromx; rr < tox; rr++) {
+						for (int cc = fromy; cc < toy; cc++) {
+							if (rr == r && cc == c) continue;
+							// P(S) = P(N)+(P(T)*(1-P(H)))
+							phn *= (1f - old[rr][cc]) + (old[rr][cc] * (1f - ACCURACY));
+						}
+					}
+
+					// P(S|T): same as above, but without skipping r, c
+					// Simplifies to P(H|N))*P(M) since tower existing is given.
+					pht = phn * (1f - ACCURACY);
 				}
 
-				// This too
-				// P(H|T) = P(H)+P(H|N)
-				float pht = accuracy + phn;
-
 				// P(T|H) = P(H|T)*P(T)/(P(H|T)*P(T)+P(H|N)*P(N))
-				map[r][c] *= pht / (pht * old[r][c] + phn * (1 - old[r][c]));
+				map.setTowerProbability(r, c,
+					pht * old[r][c] / (pht * old[r][c] + phn * (1 - old[r][c])));
 			}
 		}
 	}
 
-	private float[][] copyMap(float[][] map) {
-		int x = map.length;
-		int y = map[0].length;
-	    float[][] newMap = new float[x][y];
-	    for (int i = 0; i < x; i++) {
-	        System.arraycopy(map[i], 0, newMap[i], 0, y);
-	    }
-	    return newMap; 
+	private float probHit(GameBoard map, int x, int y, int notx, int noty) {
+		int fromx = Math.max(x - TOWER_RANGE, 0);
+		int tox   = Math.min(old.length, x + TOWER_RANGE);
+		int fromy = Math.max(y - TOWER_RANGE, 0);
+		int toy   = Math.min(old[0].length, y + TOWER_RANGE);
+		// Pany = 1 - Pnone
+		float pNone = 1;
+		for (int r = fromx; r < tox; r++) {
+			for (int c = fromy; c < toy; c++) {
+				if (r == notx && c == noty) continue;
+
+				// P(N)+(P(T)*P(H))
+				float towerAt = map.getTowerProbability(r, c);
+				pNone *= (1f - towerAt) + ()
+			}
+		}
+
+		return 1f - pNone;
+	}
+
+	private boolean inView(int vx, int vy, int x, int y) {
+		int ax = Math.abs(vx - x);
+		int ay = Math.abs(vy - y);
+		return ax < PEASANT_RANGE && ay < PEASANT_RANGE;
 	}
 	
 	private List<Pair<Integer, Integer>> getBestPath(float[][] map, Pair<Integer, Integer> curLocation, Pair<Integer, Integer> dest) {
