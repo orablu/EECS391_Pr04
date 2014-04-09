@@ -30,6 +30,8 @@ import java.util.Map;
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.history.History;
+import edu.cwru.sepia.environment.model.state.ResourceNode;
+import edu.cwru.sepia.environment.model.state.ResourceNode.ResourceView;
 import edu.cwru.sepia.environment.model.state.ResourceType;
 import edu.cwru.sepia.environment.model.state.State.StateView;
 import edu.cwru.sepia.environment.model.state.Unit.UnitView;
@@ -43,27 +45,47 @@ import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 public class ProbAgent extends Agent {
 	private static final long serialVersionUID = -4047208702628325380L;
 	private static final int GOLD_REQUIRED = 2000;	
+	private static final int PEASANT_RANGE = 3;
+	private static final int TOWER_RANGE = 4;
+	private static final float TOWER_FIRE_RATE = (float)0.75;
+	private static final float INITIAL_TOWER_DENSITY = (float)0.01;
 
 	private int step;
 	private int startingPeasants = 0;
 	private Map<UnitView, Integer> peasantHealth = new HashMap<UnitView, Integer>();
+	private Map<UnitView, Pair<Integer, Integer>> peasantLocations = new HashMap<UnitView, Pair<Integer, Integer>>();
+	private GameBoard board;
+	
+	private boolean foundGoldMine = false;
+	private Pair<Integer, Integer> estGoldMineLocation;
+	
+	private StateView currentState;
 	
 	public ProbAgent(int playernum, String[] arguments) {
 		super(playernum);
 		
 	}
 
-	StateView currentState;
 	
 	@Override
 	public Map<Integer, Action> initialStep(StateView newstate, History.HistoryView statehistory) {
 		step = 0;
+		
+		currentState = newstate;
+		
+		int width = currentState.getXExtent();
+		int height = currentState.getYExtent();
+		
+		board = new GameBoard(width, height, INITIAL_TOWER_DENSITY);
+		
+		estGoldMineLocation = new Pair<Integer, Integer>(width - PEASANT_RANGE, PEASANT_RANGE);
 		
 		for (UnitView unit : currentState.getUnits(playernum)) {
 			String unitTypeName = unit.getTemplateView().getName();
 			if(unitTypeName.equals("Peasant")) {
 				startingPeasants++;
 				peasantHealth.put(unit, unit.getHP());
+				peasantLocations.put(unit, new Pair<Integer, Integer>(unit.getXPosition(), unit.getYPosition()));
 			}
 		}
 		
@@ -115,18 +137,74 @@ public class ProbAgent extends Agent {
 		
 	}
 	
-	public static String getUsage() {
-		return "Determines the location of enemy towers and avoids them in order to collect 2000 gold.";
-	}
-	@Override
-	public void savePlayerData(OutputStream os) {
-		//this agent lacks learning and so has nothing to persist.
+	private void updateSeen(int x, int y) {
+		if (!currentState.inBounds(x, y)) {
+			return;
+		}
 		
+		board.setSeen(x, y, true);
+		
+		if (currentState.isResourceAt(x, y)) {
+        	ResourceView resource = currentState.getResourceNode(currentState.resourceAt(x, y));
+        	if(resource.getType().equals(ResourceNode.Type.GOLD_MINE)) {
+        		foundGoldMine = true;
+        		estGoldMineLocation = new Pair<Integer, Integer>(x, y);
+        	}
+        	
+        	board.setTowerProbability(x, y, 0);
+        } else if (currentState.isUnitAt(x, y)) {
+        	int unitID = currentState.unitAt(x, y);
+        	
+            String unitName = currentState.getUnit(unitID).getTemplateView().getName();
+            if(unitName.equals("Tower")) {
+        		board.setTowerProbability(x, y, 1);
+            } else {
+            	board.setTowerProbability(x, y, 0);
+            }
+        }
 	}
-	@Override
-	public void loadPlayerData(InputStream is) {
-		//this agent lacks learning and so has nothing to persist.
+	
+	private float getHitProbability(int x, int y) {
+		float probability = 0;
+		
+		for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
+			for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
+				int curX = x + i;
+				int curY = y + j;
+				if(currentState.inBounds(curX, curY)) {
+					probability += board.getTowerProbability(curX, curY);
+				}
+			}
+		}
+		
+		return probability * TOWER_FIRE_RATE;
 	}
+	
+	private void updateProbabilities(Pair<Integer, Integer> location, boolean hit) {
+		
+		if (hit) {
+			for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
+				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
+					int x = location.getX() + i;
+					int y = location.getY() + j;
+					if(currentState.inBounds(x, y)) {
+						// TODO
+					}
+				}
+			}
+		} else {
+			for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
+				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
+					int x = location.getX() + i;
+					int y = location.getY() + j;
+					if(currentState.inBounds(x, y)) {
+						// TODO
+					}
+				}
+			}
+		}
+	}
+	
 
 	private float[][] updateProbabilityMap(Pair<Integer, Integer> location, boolean hit, float[][] old, boolean[][] oofowHasTurret) {
 		float[][] map = copyMap(old);
@@ -247,5 +325,18 @@ public class ProbAgent extends Agent {
 			List<Node> closedSet) {
 		// TODO Auto-generated method stub
 		return null;
+	}
+	
+	public static String getUsage() {
+		return "Determines the location of enemy towers and avoids them in order to collect 2000 gold.";
+	}
+	@Override
+	public void savePlayerData(OutputStream os) {
+		//this agent lacks learning and so has nothing to persist.
+		
+	}
+	@Override
+	public void loadPlayerData(InputStream is) {
+		//this agent lacks learning and so has nothing to persist.
 	}
 }
