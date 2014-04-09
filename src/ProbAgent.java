@@ -150,12 +150,16 @@ public class ProbAgent extends Agent {
         		foundGoldMine = true;
         		estGoldMineLocation = new Pair<Integer, Integer>(x, y);
         	}
+        	
+        	board.setTowerProbability(x, y, 0);
         } else if (currentState.isUnitAt(x, y)) {
         	int unitID = currentState.unitAt(x, y);
         	
             String unitName = currentState.getUnit(unitID).getTemplateView().getName();
             if(unitName.equals("Tower")) {
         		board.setTowerProbability(x, y, 1);
+            } else {
+            	board.setTowerProbability(x, y, 0);
             }
         }
 	}
