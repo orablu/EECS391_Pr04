@@ -63,4 +63,14 @@ public class GameBoard {
 	public void setHasTree(int x, int y, boolean hasTree) {
 		this.hasTree[x][y] = hasTree;
 	}
+
+	public float[][] getBoardCopy() {
+		int x = towerProbability.length;
+		int y = towerProbability[0].length;
+	    float[][] newMap = new float[x][y];
+	    for (int i = 0; i < x; i++) {
+	        System.arraycopy(towerProbability[i], 0, newMap[i], 0, y);
+	    }
+	    return newMap; 
+	}
 }
