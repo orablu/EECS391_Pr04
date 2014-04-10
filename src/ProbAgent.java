@@ -352,11 +352,12 @@ public class ProbAgent extends Agent {
 	private float getHitProbability(int x, int y) {
 		float probability = 0;
 		
-		for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
-			for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
+		for (int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
+			for (int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
 				int curX = x + i;
 				int curY = y + j;
-				if(currentState.inBounds(curX, curY)) {
+				if (currentState.inBounds(curX, curY)
+						&& distance(x, y, curX, curY) <= TOWER_RANGE) { // tower shoots in a circular range
 					probability = (probability + board.getTowerProbability(curX, curY)) - (probability * board.getTowerProbability(curX, curY));
 				}
 			}
@@ -379,7 +380,10 @@ public class ProbAgent extends Agent {
 		int toY   = Math.min(old[0].length, y + TOWER_RANGE);
 		for (int r = fromX; r < toX; r++) {
 			for (int c = fromY; c < toY; c++) {
-				if (board.getSeen(r, c)) continue; // Only need to update out-of-view cells.
+				if (board.getSeen(r, c) // Only need to update out-of-view cells.
+						|| distance(x, y, r, c) <= TOWER_RANGE) { // tower has circular range
+					continue; 
+				}
 
 				float phn, pht;
 				if (hit) {
@@ -417,6 +421,11 @@ public class ProbAgent extends Agent {
 				board.setTowerProbability(r, c, pht * old[r][c] / (pht * old[r][c] + phn * (1 - old[r][c])));
 			}
 		}
+	}
+
+
+	private double distance(int x1, int y1, int x2, int y2) {
+		return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
 	}
 
 	/**
