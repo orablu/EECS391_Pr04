@@ -168,6 +168,8 @@ public class ProbAgent extends Agent {
         	if(resource.getType().equals(ResourceNode.Type.GOLD_MINE)) {
         		foundGoldMine = true;
         		estGoldMineLocation = new Pair<Integer, Integer>(x, y);
+        	} else if (resource.getType().equals(ResourceNode.Type.TREE)) {
+        		board.setHasTree(x, y, true);
         	}
         	
         	board.setTowerProbability(x, y, 0);
@@ -191,7 +193,7 @@ public class ProbAgent extends Agent {
 				int curX = x + i;
 				int curY = y + j;
 				if(currentState.inBounds(curX, curY)) {
-					probability += board.getTowerProbability(curX, curY);
+					probability = (probability + board.getTowerProbability(curX, curY)) - (probability * board.getTowerProbability(curX, curY));
 				}
 			}
 		}
@@ -224,7 +226,7 @@ public class ProbAgent extends Agent {
 		}
 	}
 
-	private static final float ACCURACY = 0.75;
+	private static final float ACCURACY = 0.75f;
 	private void updateFromHit(GameBoard map, int x, int y, boolean hit) {
 		float[][] old = map.getBoardCopy();
 		int fromx = Math.max(x - TOWER_RANGE, 0);
@@ -293,18 +295,18 @@ public class ProbAgent extends Agent {
 		return 1f - pNone;
 	}
 	
-	private List<Pair<Integer, Integer>> getBestPath(float[][] map, Pair<Integer, Integer> curLocation, Pair<Integer, Integer> dest) {
+	private List<Pair<Integer, Integer>> getBestPath(Pair<Integer, Integer> curLocation, Pair<Integer, Integer> dest) {
 		List<Pair<Integer, Integer>> path =  new ArrayList<Pair<Integer, Integer>>();
 		// TODO: do something here
 		
-		Node current = new Node(curLocation.getX(), curLocation.getY(), map[curLocation.getX()][curLocation.getY()]);
-		Node target = new Node(dest.getX(), dest.getY(), map[dest.getX()][dest.getY()]);
+		Node current = new Node(curLocation.getX(), curLocation.getY());
+		Node target = new Node(dest.getX(), dest.getY());
 		List<Node> openSet = new ArrayList<>();
         List<Node> closedSet = new ArrayList<>();
         
         while (true) {
             openSet.remove(current);
-            List<Node> adjacent = getAdjacentNodes(map, current, closedSet);
+            List<Node> adjacent = getAdjacentNodes(current);
 
             // Find the adjacent node with the lowest heuristic cost.
             for (Node node : adjacent) {
@@ -343,9 +345,23 @@ public class ProbAgent extends Agent {
 		return false;
 	}
 
-	private List<Node> getAdjacentNodes(float[][] map, Node current,
-			List<Node> closedSet) {
-		// TODO Auto-generated method stub
+	private List<Node> getAdjacentNodes(Node current) {
+		List<Node> adjacent = new ArrayList<Node>();
+		
+		for (int i = -1; i <=1; i++) {
+			for (int j = -1; j <=1; j++) {
+				if (i == 0 && j == 0) {
+					continue;
+				}
+				int x = current.getX() + i;
+				int y = current.getY() + j;
+				if (!currentState.inBounds(x, y)
+						|| board.getHasTree(x, y)) {
+					continue;
+				}
+				adjacent.add(new Node(x, y, getHitProbability(x, y), current));
+			}
+		}
 		return null;
 	}
 	

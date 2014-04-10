@@ -4,12 +4,14 @@ public class GameBoard {
 	private int visits[][];
 	private int hits[][];
 	private boolean seen[][];
+	private boolean hasTree[][];
 	
 	public GameBoard(int width, int height, float towerDensity) {
 		towerProbability = new float[width][height];
 		visits = new int[width][height];
 		hits = new int[width][height];
 		seen = new boolean[width][height];
+		hasTree = new boolean[width][height];
 		
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
@@ -17,6 +19,7 @@ public class GameBoard {
 				visits[i][j] = 0;
 				hits[i][j] = 0;
 				seen[i][j] = false;
+				hasTree[i][j] = false;
 			}
 		}
 	}
@@ -51,6 +54,14 @@ public class GameBoard {
 	
 	public void setSeen(int x, int y, boolean seen) {
 		this.seen[x][y] = seen;
+	}
+	
+	public boolean getHasTree(int x, int y) {
+		return hasTree[x][y];
+	}
+	
+	public void setHasTree(int x, int y, boolean hasTree) {
+		this.hasTree[x][y] = hasTree;
 	}
 
 	public float[][] getBoardCopy() {
