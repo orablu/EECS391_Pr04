@@ -160,9 +160,12 @@ public class ProbAgent extends Agent {
 		
 		if (peasants.size() == 0) {
 			System.out.println("Dead.");
-			if (persistentMode && !alreadySaved) {
-				System.out.println("Saving board for next time");
-				board.serializeGameBoard(boardSaveName);
+			if (!alreadySaved) {
+				System.out.println("Saving board for next time:");
+				board.print();
+				if (persistentMode) {
+					board.serializeGameBoard(boardSaveName);
+				}
 				alreadySaved = true;
 			}
 			return builder;
@@ -210,7 +213,7 @@ public class ProbAgent extends Agent {
 				board.incrementHits(x, y);
 				updateFromHit(x, y, true);
 				randomWalk = false;
-//				board.print();
+				board.print();
 			} else {
 				
 				// update probabilities based on no hit

@@ -88,10 +88,10 @@ public class GameBoard implements Serializable {
 	}
 
 	public void print() {
-		String[] value = new String[] { "0 ", "1 ", "2 ", "3 ", "4 ", "5 ", "6 ", "7 ", "8 ", "9 ", "X!" };
-		// for (int i = 0; i < towerProbability.length; i++) {
+		String[] value = new String[] { "  ", "1 ", "2 ", "3 ", "4 ", "5 ", "6 ", "7 ", "8 ", "9 ", "X!" };
+		for (int i = 0; i < towerProbability.length; i++) {
 			// for (int j = 0; j < towerProbability[i].length; j++) {
-		for (int i = towerProbability.length - 1; i >= 0; i--) {
+		// for (int i = towerProbability.length - 1; i >= 0; i--) {
 			for (int j = towerProbability[i].length - 1; j >= 0; j--) {
 				System.out.print(value[(int)(towerProbability[i][j] * 10f + 0.01f)]);
 			}
