@@ -358,9 +358,10 @@ public class ProbAgent extends Agent {
             List<Node> adjacent = getAdjacentNodes(current, closedSet);
 
             // Find the adjacent node with the lowest heuristic cost.
-            List<Node> openSetCopy = new ArrayList<Node>(openSet);
+            // List<Node> openSetCopy = new ArrayList<Node>(openSet);
             for (Node neighbor : adjacent) {
             	boolean inOpenset = false;
+            	List<Node> openSetCopy = new ArrayList<>(openSet);
             	for (Node node : openSetCopy) {
             		if (neighbor.equals(node)) {
             			inOpenset = true;
@@ -374,7 +375,6 @@ public class ProbAgent extends Agent {
             	if (!inOpenset) {
             		openSet.add(neighbor);
             	}
-            	openSetCopy = new ArrayList<>(openSet);
             }
 
             // Exit search if done.
