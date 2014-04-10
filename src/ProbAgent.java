@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +36,7 @@ import edu.cwru.sepia.environment.model.state.ResourceNode.ResourceView;
 import edu.cwru.sepia.environment.model.state.ResourceType;
 import edu.cwru.sepia.environment.model.state.State.StateView;
 import edu.cwru.sepia.environment.model.state.Unit.UnitView;
+import edu.cwru.sepia.util.Direction;
 
 /**
  * This agent will first collect gold to produce a peasant,
@@ -47,8 +49,8 @@ public class ProbAgent extends Agent {
 	private static final int GOLD_REQUIRED = 2000;	
 	private static final int PEASANT_RANGE = 3;
 	private static final int TOWER_RANGE = 4;
-	private static final float TOWER_FIRE_RATE = (float)0.75;
-	private static final float INITIAL_TOWER_DENSITY = (float)0.01;
+	private static final float TOWER_FIRE_RATE = 0.75f;
+	private static final float INITIAL_TOWER_DENSITY = 0.01f;
 
 	private int step;
 	private int startingPeasants = 0;
@@ -138,6 +140,34 @@ public class ProbAgent extends Agent {
 			}
 		}
 		
+		for (UnitView peasant : peasants) {
+			if (peasant.getCargoAmount() == 0) {
+				if (isAdjacent(peasant.getXPosition(), peasant.getYPosition(), estGoldMineLocation.getX(), estGoldMineLocation.getY())
+						&& foundGoldMine) {
+					Action a = Action.createCompoundGather(peasant.getID(), currentState.resourceAt(estGoldMineLocation.getX(), estGoldMineLocation.getY()));
+					builder.put(peasant.getID(), a);
+				} else {
+					List<Pair<Integer, Integer>> bestPath = getBestPath(new Pair<Integer, Integer>(peasant.getXPosition(), peasant.getYPosition()), estGoldMineLocation);
+					Pair<Integer, Integer> nextStep = bestPath.get(0);
+					Action a = Action.createPrimitiveMove(peasant.getID(),
+							getDirection(nextStep.getX() - peasant.getXPosition(), nextStep.getY() - peasant.getYPosition()));
+					builder.put(peasant.getID(), a);
+				}
+			} else {
+				if (isAdjacent(peasant.getXPosition(), peasant.getYPosition(), townhalls.get(0).getXPosition(), townhalls.get(0).getYPosition())) {
+					Action a = Action.createCompoundDeposit(peasant.getID(), townhalls.get(0).getID());
+					builder.put(peasant.getID(), a);
+				} else {
+					List<Pair<Integer, Integer>> bestPath = getBestPath(new Pair<Integer, Integer>(peasant.getXPosition(), peasant.getYPosition()),
+							new Pair<Integer, Integer>(townhalls.get(0).getXPosition(), townhalls.get(0).getYPosition()));
+					Pair<Integer, Integer> nextStep = bestPath.get(0);
+					Action a = Action.createPrimitiveMove(peasant.getID(),
+							getDirection(nextStep.getX() - peasant.getXPosition(), nextStep.getY() - peasant.getYPosition()));
+					builder.put(peasant.getID(), a);
+				}
+			}
+		}
+		
 		return builder;
 	}
 
@@ -147,6 +177,29 @@ public class ProbAgent extends Agent {
 		step++;
 		
 	}
+	
+    private Direction getDirection(int x, int y) {
+        if (x == 1 && y == 0) {
+            return Direction.EAST;
+        } else if (x == 1 && y == -1) {
+            return Direction.NORTHEAST;
+        } else if (x == 0 && y == -1) {
+            return Direction.NORTH;
+        } else if (x == -1 && y == -1) {
+            return Direction.NORTHWEST;
+        } else if (x == -1 && y == 0) {
+            return Direction.WEST;
+        } else if (x == -1 && y == 1) {
+            return Direction.SOUTHWEST;
+        } else if (x == 0 && y == 1) {
+            return Direction.SOUTH;
+        } else if (x == 1 && y == 1) {
+            return Direction.SOUTHEAST;
+        } else {
+            System.out.println("Something bad happened while calculating direction");
+            return null;
+        }
+    }
 	
 	private void updatePeasantViewRange(int x, int y) {
 		for(int i = -PEASANT_RANGE; i <= PEASANT_RANGE; i++) {
@@ -283,23 +336,20 @@ public class ProbAgent extends Agent {
 	}
 	
 	private List<Pair<Integer, Integer>> getBestPath(Pair<Integer, Integer> curLocation, Pair<Integer, Integer> dest) {
-		List<Pair<Integer, Integer>> path =  new ArrayList<Pair<Integer, Integer>>();
+		List<Pair<Integer, Integer>> path =  new LinkedList<Pair<Integer, Integer>>();
 		// TODO: do something here
 		
-		Node current = new Node(curLocation.getX(), curLocation.getY());
-		Node target = new Node(dest.getX(), dest.getY());
+		Node current = new Node(curLocation.getX(), curLocation.getY(), getHitProbability(curLocation.getX(), curLocation.getY()));
+		Node target = new Node(dest.getX(), dest.getY(), getHitProbability(dest.getX(), dest.getY()));
 		List<Node> openSet = new ArrayList<>();
         List<Node> closedSet = new ArrayList<>();
         
         while (true) {
             openSet.remove(current);
-            List<Node> adjacent = getAdjacentNodes(current);
+            List<Node> adjacent = getAdjacentNodes(current, closedSet);
 
             // Find the adjacent node with the lowest heuristic cost.
-            for (Node node : adjacent) {
-//                System.out.println("\tAdjacent Node: " + current);
-                openSet.add(new Node(node, current));
-            }
+            openSet.addAll(adjacent);
 
             // Exit search if done.
             if (openSet.isEmpty()) {
@@ -316,7 +366,7 @@ public class ProbAgent extends Agent {
             // Find the next open node with the lowest cost.
             Node next = openSet.get(0);
             for (Node node : openSet) {
-                if (node.getCost() < next.getCost()) {
+                if (node.getCost(target) < next.getCost(target)) {
                     next = node;
                 }
             }
@@ -324,18 +374,35 @@ public class ProbAgent extends Agent {
             current = next;
         }
         
+        path.add(new Pair<Integer, Integer>(curLocation.getX(), curLocation.getY()));
+        while(current.getParent() != null) {
+        	current = current.getParent();
+        	path.add(0, new Pair<Integer, Integer>(curLocation.getX(), curLocation.getY()));
+        }
+        
 		return path;
 	}
 
 	private boolean isAdjacent(Node current, Node target) {
-		// TODO Auto-generated method stub
-		return false;
+        return isAdjacent(current.getX(), current.getY(), target.getX(), target.getY());
+	}
+	
+	private boolean isAdjacent(int x, int y, int targetX, int targetY) {
+	        for (int i = x - 1; i <= x + 1; i++) {
+	            for (int j = y - 1; j <= y + 1; j++) {
+	                if (i == targetX && j == targetY) {
+	                    return true;
+	                }
+	            }
+	        }
+	        return false;
 	}
 
-	private List<Node> getAdjacentNodes(Node current) {
+	private List<Node> getAdjacentNodes(Node current, List<Node> closedSet) {
 		List<Node> adjacent = new ArrayList<Node>();
 		
 		for (int i = -1; i <=1; i++) {
+			inner:
 			for (int j = -1; j <=1; j++) {
 				if (i == 0 && j == 0) {
 					continue;
@@ -346,7 +413,13 @@ public class ProbAgent extends Agent {
 						|| board.getHasTree(x, y)) {
 					continue;
 				}
-				adjacent.add(new Node(x, y, getHitProbability(x, y), current));
+				Node node = new Node(x, y, getHitProbability(x, y), current);
+				for (Node visitedNode : closedSet) {
+					if (node.equals(visitedNode)) {
+						continue inner;
+					}
+				}
+				adjacent.add(node);
 			}
 		}
 		return null;

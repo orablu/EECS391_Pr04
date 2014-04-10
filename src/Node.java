@@ -2,13 +2,13 @@
 public class Node {
 	private int x;
 	private int y;
-	private float probability;
+	private float probability = 0.01f;
 	private Node parent;
 	
-	public Node(int x, int y) {
-		this.x = x;
-		this.y = y;
-	}
+//	public Node(int x, int y) {
+//		this.x = x;
+//		this.y = y;
+//	}
 	
 	public Node(int x, int y, float probability) {
 		this.x = x;
@@ -16,12 +16,12 @@ public class Node {
 		this.probability = probability;
 	}
 
-	public Node(Node node, Node parent) {
-		this.x = node.x;
-		this.y = node.y;
-		this.probability = node.probability;
-		this.parent = parent;
-	}
+//	public Node(Node node, Node parent) {
+//		this.x = node.x;
+//		this.y = node.y;
+//		this.probability = node.probability;
+//		this.parent = parent;
+//	}
 	
 	public Node(int x, int y, float probability, Node parent) {
 		this.x = x;
@@ -46,6 +46,10 @@ public class Node {
 		this.probability = probability;
 	}
 	
+	public Node getParent() {
+		return parent;
+	}
+	
 	@Override
 	public boolean equals(Object o) {
 		if (o == null) {
@@ -62,12 +66,11 @@ public class Node {
         return x == node.getX() && y == node.getY();
 	}
 
-	public float getCost() {
-		return this.getHeuristicCost() + this.getAccumulatedCost();
+	public float getCost(Node target) {
+		return this.getHeuristicCost(target) + this.getAccumulatedCost();
 	}
 
-	private float getAccumulatedCost() {
-		// TODO accumulate probabilities in some way
+	public float getAccumulatedCost() {
 		float accumCost;
 		if (parent == null) {
             accumCost = probability;
@@ -77,8 +80,10 @@ public class Node {
 		return accumCost;
 	}
 
-	private float getHeuristicCost() {
-		// TODO Heuristic this somehow
-		return 0;
+	private float getHeuristicCost(Node target) {
+		int x = Math.abs(this.x - target.getX());
+        int y = Math.abs(this.y - target.getY());
+        int cost = Math.max(x, y);
+        return (float)cost * 0.01f;
 	}
 }
