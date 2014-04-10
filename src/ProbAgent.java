@@ -154,6 +154,7 @@ public class ProbAgent extends Agent {
 			} else {
 				updateFromHit(x, y, false);
 			}
+			peasantHealth.put(peasant.getID(), peasant.getHP());
 		}
 		
 		for (UnitView peasant : peasants) {
