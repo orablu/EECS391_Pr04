@@ -53,6 +53,7 @@ public class ProbAgent extends Agent {
 	private static final int TOWER_RANGE = 4;
 	private static final float TOWER_ACCURACY = 0.75f;
 	private static final float INITIAL_TOWER_DENSITY = 0.01f;
+	private static final double RANDOM_WALK_PROB = 0.75; // the probability that a peasant should walk in a random direction after being attacked
 
 	private int step;
 	private int startingPeasants = 0;
@@ -63,7 +64,6 @@ public class ProbAgent extends Agent {
 	
 	private boolean persistentMode = false;
 	private String boardSaveName = "board.board";
-	private boolean alreadySaved = false;
 	
 	private boolean foundGoldMine = false;
 	private Pair<Integer, Integer> estGoldMineLocation;
@@ -143,6 +143,7 @@ public class ProbAgent extends Agent {
 		int currentGold = currentState.getResourceAmount(0, ResourceType.GOLD);
 		if (currentGold >= GOLD_REQUIRED) {
 			System.out.println("Completed objective!");
+			System.exit(0);
 		}
 
 		List<UnitView> peasants = new ArrayList<UnitView>();
@@ -160,7 +161,6 @@ public class ProbAgent extends Agent {
 		
 		// We are dead
 		if (peasants.size() == 0) {
-			if(!alreadySaved) {
 				System.out.println("Dead.");
 			
 				// if in persistent mode, save the board for next time
@@ -168,9 +168,7 @@ public class ProbAgent extends Agent {
 					System.out.println("Saving board for next time");
 					board.serializeGameBoard(boardSaveName);
 				}
-			}
-			alreadySaved = true;
-			return builder;
+			System.exit(0);
 		}
 		
 		
@@ -182,6 +180,8 @@ public class ProbAgent extends Agent {
 			System.out.println("Making new peasant");
 			builder.put(townhallID, Action.createCompoundProduction(townhallID, peasantTemplateID));
 		}
+		
+		List<UnitView> hitList = new ArrayList<>();
 		
 		// Find all the peasants and update probabilities
 		for (UnitView peasant : peasants) {
@@ -208,6 +208,7 @@ public class ProbAgent extends Agent {
 				board.incrementHits(x, y);
 				updateFromHit(x, y, true);
 				randomWalk = false;
+				hitList.add(peasant);
 //				board.print();
 			} else {
 				
@@ -220,16 +221,8 @@ public class ProbAgent extends Agent {
 		// determine actions for each peasant
 		for (UnitView peasant : peasants) {
 			if (randomWalk) { // if no peasant has been hit yet, randomly walk around
-				Node current = new Node(peasant.getXPosition(), peasant.getYPosition(), getHitProbability(peasant.getXPosition(), peasant.getXPosition()));
-				
-				// We need a node to put into getAdjacentNodes that won't get hit with random walk and isn't the townhall
-				// This is just a hack to stop peasants from getting stuck behind the townhall...
-				Node fudge = new Node(estGoldMineLocation.getX(), estGoldMineLocation.getY(), getHitProbability(estGoldMineLocation.getX(), estGoldMineLocation.getY()));
-				List<Node> adjacentNodes = getAdjacentNodes(current, new ArrayList<Node>(), fudge);
-				
-				Random random = new Random();
-				Node nextStep = adjacentNodes.get(random.nextInt(adjacentNodes.size()));
-				
+
+				Node nextStep = randomAdjacentNode(peasant.getXPosition(), peasant.getYPosition());
 				Direction direction = getDirection(nextStep.getX() - peasant.getXPosition(), nextStep.getY() - peasant.getYPosition());
 				
 				Action a = Action.createPrimitiveMove(peasant.getID(), direction);
@@ -245,6 +238,12 @@ public class ProbAgent extends Agent {
 				} else { // move towards goldmine
 					List<Pair<Integer, Integer>> bestPath = getBestPath(new Pair<Integer, Integer>(peasant.getXPosition(), peasant.getYPosition()), estGoldMineLocation);
 					Pair<Integer, Integer> nextStep = bestPath.get(0);
+					
+					// if a peasant has been hit, randomly walk around with some probability
+					if (hitList.contains(peasant) && Math.random() < RANDOM_WALK_PROB) {
+						Node node = randomAdjacentNode(peasant.getXPosition(), peasant.getYPosition());
+						nextStep = new Pair<Integer, Integer>(node.getX(), node.getY());
+					}
 					
 					Direction direction = getDirection(nextStep.getX() - peasant.getXPosition(), nextStep.getY() - peasant.getYPosition());
 					
@@ -264,6 +263,12 @@ public class ProbAgent extends Agent {
 							new Pair<Integer, Integer>(townhalls.get(0).getXPosition(), townhalls.get(0).getYPosition()));
 					Pair<Integer, Integer> nextStep = bestPath.get(0);
 					
+					// if a peasant has been hit, randomly walk around with some probability
+					if (hitList.contains(peasant) && Math.random() < RANDOM_WALK_PROB) {
+						Node node = randomAdjacentNode(peasant.getXPosition(), peasant.getYPosition());
+						nextStep = new Pair<Integer, Integer>(node.getX(), node.getY());
+					}
+					
 					Direction direction = getDirection(nextStep.getX() - peasant.getXPosition(), nextStep.getY() - peasant.getYPosition());
 					
 					Action a = Action.createPrimitiveMove(peasant.getID(), direction);
@@ -281,6 +286,19 @@ public class ProbAgent extends Agent {
 	public void terminalStep(StateView newstate, History.HistoryView statehistory) {
 		step++;
 		
+	}
+	
+	private Node randomAdjacentNode(int locX, int locY) {
+		
+		Node current = new Node(locX, locY, getHitProbability(locX, locY));
+		
+		// We need a node to put into getAdjacentNodes that won't get hit with random walk and isn't the townhall
+		// This is just a hack to stop peasants from getting stuck behind the townhall...
+		Node fudge = new Node(estGoldMineLocation.getX(), estGoldMineLocation.getY(), getHitProbability(estGoldMineLocation.getX(), estGoldMineLocation.getY()));
+		List<Node> adjacentNodes = getAdjacentNodes(current, new ArrayList<Node>(), fudge);
+		
+		Random random = new Random();
+		return adjacentNodes.get(random.nextInt(adjacentNodes.size()));
 	}
 	
     private Direction getDirection(int x, int y) {

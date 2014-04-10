@@ -8,6 +8,7 @@ The program is designed to find the probability of enemy tower locations and avo
 At each turn, information is saved for each square that details the number of times it has been visited, whether it has been seen by a peasant, and how many times a peasant has been attacked there.
 This information is used to calculate a probability distribution of likely tower locations.
 A* search is used to find a path with the least likelihood of being attacked by a tower.
+If a peasant gets hit by a tower, they will move in a random direction with some probability. This increases the chances of seeing the tower, and in general, more exploration seems to be better.
 
 Initially, the peasants walk randomly. This phase ends when a peasant gets attacked.
 After this, the peasants try to find a path to the top right of the game board, in search of the goldmine.
@@ -28,6 +29,8 @@ Persistent Mode:
 	If you want to run persistent mode on any other maps besides the two provided, just include "Persistent" as an argument in the config file.
 	If you want to start a fresh run with a new game board, just delete the "SavedBoards" directory. This is sometimes necessary if the peasants keep running into the same dead-end.
 	
+In general, if, after a few tries on normal mode, the peasants aren't able to get to the mine, try switching to persistent mode and running it multiple times.
+	
 To run the assignment parts, execute the following:
 
 ```bat
@@ -45,6 +48,6 @@ buildProbGame:
 buildProbGame2:
 	Runs the 32x32 map
 	
-buildProbGameP:
-	Runs the game in persistent mode. For more details, see above
+buildProbGameP/2P:
+	Runs the game in persistent mode. For more details, see the explanation above.
 	
