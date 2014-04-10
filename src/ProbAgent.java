@@ -151,6 +151,7 @@ public class ProbAgent extends Agent {
 				System.out.println("Peasant " + peasant.getID() + " has been hit!");
 				board.incrementHits(x, y);
 				updateFromHit(x, y, true);
+				board.print();
 			} else {
 				updateFromHit(x, y, false);
 			}
@@ -307,31 +308,6 @@ public class ProbAgent extends Agent {
 		
 		return probability * TOWER_FIRE_RATE;
 	}
-	
-//	private void updateProbabilities(Pair<Integer, Integer> location, boolean hit) {
-//		
-//		if (hit) {
-//			for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
-//				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
-//					int x = location.getX() + i;
-//					int y = location.getY() + j;
-//					if(currentState.inBounds(x, y) && !board.getSeen(x, y)) {
-//						// TODO
-//					}
-//				}
-//			}
-//		} else {
-//			for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
-//				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
-//					int x = location.getX() + i;
-//					int y = location.getY() + j;
-//					if(currentState.inBounds(x, y) && !board.getSeen(x, y)) {
-//						// TODO
-//					}
-//				}
-//			}
-//		}
-//	}
 
 	private static final float ACCURACY = 0.75f;
 	private void updateFromHit(int x, int y, boolean hit) {

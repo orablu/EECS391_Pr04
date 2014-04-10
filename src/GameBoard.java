@@ -7,19 +7,19 @@ public class GameBoard {
 	private boolean hasTree[][];
 	
 	public GameBoard(int width, int height, float towerDensity) {
-		towerProbability = new float[width][height];
-		visits = new int[width][height];
-		hits = new int[width][height];
-		seen = new boolean[width][height];
-		hasTree = new boolean[width][height];
+		towerProbability = new   float[width][height];
+		visits           = new     int[width][height];
+		hits             = new     int[width][height];
+		seen             = new boolean[width][height];
+		hasTree          = new boolean[width][height];
 		
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
 				towerProbability[i][j] = towerDensity;
-				visits[i][j] = 0;
-				hits[i][j] = 0;
-				seen[i][j] = false;
-				hasTree[i][j] = false;
+				visits[i][j]           = 0;
+				hits[i][j]             = 0;
+				seen[i][j]             = false;
+				hasTree[i][j]          = false;
 			}
 		}
 	}
@@ -72,5 +72,17 @@ public class GameBoard {
 	        System.arraycopy(towerProbability[i], 0, newMap[i], 0, y);
 	    }
 	    return newMap; 
+	}
+
+	public void print() {
+		String[] value = new String[] { "0 ", "1 ", "2 ", "3 ", "4 ", "5 ", "6 ", "7 ", "8 ", "9 ", "X!" };
+		// for (int i = 0; i < towerProbability.length; i++) {
+			// for (int j = 0; j < towerProbability[i].length; j++) {
+		for (int i = towerProbability.length - 1; i >= 0; i--) {
+			for (int j = towerProbability[i].length - 1; j >= 0; j--) {
+				System.out.print(value[(int)(towerProbability[i][j] * 10f + 0.01f)]);
+			}
+			System.out.println();
+		}
 	}
 }
