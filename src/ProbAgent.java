@@ -48,7 +48,7 @@ import edu.cwru.sepia.util.Direction;
 public class ProbAgent extends Agent {
 	private static final long serialVersionUID = -4047208702628325380L;
 	private static final int GOLD_REQUIRED = 2000;	
-	private static final int PEASANT_RANGE = 3;
+	private static final int PEASANT_RANGE = 2;
 	private static final int TOWER_RANGE = 4;
 	private static final float TOWER_FIRE_RATE = 0.75f;
 	private static final float INITIAL_TOWER_DENSITY = 0.01f;
@@ -103,6 +103,9 @@ public class ProbAgent extends Agent {
 		currentState = newState;
 		
 		int currentGold = currentState.getResourceAmount(0, ResourceType.GOLD);
+		if (currentGold >= GOLD_REQUIRED) {
+			System.out.println("Completed objective!");
+		}
 
 		List<UnitView> peasants = new ArrayList<UnitView>();
 		List<UnitView> townhalls = new ArrayList<UnitView>();
@@ -117,13 +120,13 @@ public class ProbAgent extends Agent {
 			}
 		}
 		
-		if (peasants.size() > peasantLocations.keySet().size()) {
-			System.out.println("Peasant has been killed!");
+//		if (peasants.size() > peasantLocations.keySet().size()) {
+//			System.out.println("Peasant has been killed!");
 //			List<Integer> currentPeasantIds = new ArrayList<Integer>();
 //			for (UnitView peasant : peasants) {
 //				currentPeasantIds.add(peasant.getID());
 //			}
-		}
+//		}
 		
 		// Build a new peasant if we have lost any
 		if (peasants.size() < startingPeasants && currentGold >= peasants.get(0).getTemplateView().getGoldCost()) {
@@ -147,11 +150,10 @@ public class ProbAgent extends Agent {
 			}
 			
 			if (peasantHealth.get(peasant.getID()) > peasant.getHP()) {
-				// TODO sometimes detecting a hit when it shouldn't
 				System.out.println("Peasant " + peasant.getID() + " has been hit!");
 				board.incrementHits(x, y);
 				updateFromHit(x, y, true);
-				board.print();
+//				board.print();
 			} else {
 				updateFromHit(x, y, false);
 			}
@@ -256,7 +258,8 @@ public class ProbAgent extends Agent {
         	int unitID = currentState.unitAt(x, y);
         	
             String unitName = currentState.getUnit(unitID).getTemplateView().getName();
-            if(unitName.equals("Tower")) {
+            if(unitName.equalsIgnoreCase("ScoutTower")) {
+            	System.out.println("Found tower!");
         		board.setTowerProbability(x, y, 1);
             } else {
             	board.setTowerProbability(x, y, 0);
@@ -467,7 +470,8 @@ public class ProbAgent extends Agent {
 				int y = current.getY() + j;
 				if (!currentState.inBounds(x, y)
 						|| board.getHasTree(x, y)
-						|| peasantAt(x,y)) {
+						|| peasantAt(x,y)
+						|| board.getTowerProbability(x, y) == 1) {
 					continue;
 				}
 				Node node = new Node(x, y, getHitProbability(x, y), current);
