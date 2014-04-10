@@ -86,4 +86,8 @@ public class Node {
         int cost = Math.max(x, y);
         return (float)cost * 0.01f;
 	}
+	
+	public String toString() {
+		return "Node at " + x + "," + y + " with probability " + probability;
+	}
 }
