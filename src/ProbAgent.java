@@ -61,6 +61,10 @@ public class ProbAgent extends Agent {
 	private GameBoard board;
 	private boolean randomWalk = true;
 	
+	private boolean persistentMode = false;
+	private String boardSaveName = "board.board";
+	private boolean alreadySaved = false;
+	
 	private boolean foundGoldMine = false;
 	private Pair<Integer, Integer> estGoldMineLocation;
 	
@@ -69,6 +73,13 @@ public class ProbAgent extends Agent {
 	public ProbAgent(int playernum, String[] arguments) {
 		super(playernum);
 		
+		// Persistent mode saves a probability distribution for use across multiple games
+		for (String arg : arguments) {
+			if (arg.equalsIgnoreCase("Persistent")) {
+				System.out.println("Persistent mode enabled");
+				persistentMode = true;
+			}
+		}
 	}
 
 	
@@ -81,7 +92,6 @@ public class ProbAgent extends Agent {
 		int width = currentState.getXExtent();
 		int height = currentState.getYExtent();
 		
-		board = new GameBoard(width, height, INITIAL_TOWER_DENSITY);
 		
 		estGoldMineLocation = new Pair<Integer, Integer>(width - PEASANT_RANGE, PEASANT_RANGE);
 		
@@ -94,8 +104,34 @@ public class ProbAgent extends Agent {
 			}
 		}
 		
+		board = new GameBoard(width, height, INITIAL_TOWER_DENSITY);
+		
+		// Load the probabilities from a previous run if enabled
+		if (persistentMode) {
+			boardSaveName = getUniqueNameForBoard();
+			GameBoard loaded = GameBoard.loadGameBoard(boardSaveName);
+			if (loaded != null) {
+				board = loaded;
+				randomWalk = false;
+			}
+		}
+		
 		return middleStep(newstate, statehistory);
 	}
+
+	private String getUniqueNameForBoard() {
+		int width = currentState.getXExtent();
+		int height = currentState.getYExtent();
+		
+		// make a unique id for this configuration
+		int id = 0;
+		for (Integer pId : peasantLocations.keySet()) {
+			id += pId * (peasantLocations.get(pId).getX() + peasantLocations.get(pId).getY());
+		}
+		
+		return (width + "x" + height + "_" + id + ".board");
+	}
+
 
 	@Override
 	public Map<Integer,Action> middleStep(StateView newState, History.HistoryView statehistory) {
@@ -124,6 +160,11 @@ public class ProbAgent extends Agent {
 		
 		if (peasants.size() == 0) {
 			System.out.println("Dead.");
+			if (persistentMode && !alreadySaved) {
+				System.out.println("Saving board for next time");
+				board.serializeGameBoard(boardSaveName);
+				alreadySaved = true;
+			}
 			return builder;
 		}
 		
@@ -182,7 +223,11 @@ public class ProbAgent extends Agent {
 		for (UnitView peasant : peasants) {
 			if (randomWalk) { // if no peasant has been hit yet, randomly walk around
 				Node current = new Node(peasant.getXPosition(), peasant.getYPosition(), getHitProbability(peasant.getXPosition(), peasant.getXPosition()));
-				List<Node> adjacentNodes = getAdjacentNodes(current, new ArrayList<Node>());
+				
+				// We need a node to put into getAdjacentNodes that won't get hit with random walk and isn't the townhall
+				// This is just a hack to stop peasants from getting stuck behind the townhall...
+				Node fudge = new Node(estGoldMineLocation.getX(), estGoldMineLocation.getY(), getHitProbability(estGoldMineLocation.getX(), estGoldMineLocation.getY()));
+				List<Node> adjacentNodes = getAdjacentNodes(current, new ArrayList<Node>(), fudge);
 				
 				Random random = new Random();
 				Node nextStep = adjacentNodes.get(random.nextInt(adjacentNodes.size()));
@@ -233,7 +278,6 @@ public class ProbAgent extends Agent {
 		
 		return builder;
 	}
-
 
 	@Override
 	public void terminalStep(StateView newstate, History.HistoryView statehistory) {
@@ -446,7 +490,7 @@ public class ProbAgent extends Agent {
         
         while (true) {
             openSet.remove(current);
-            List<Node> adjacent = getAdjacentNodes(current, closedSet);
+            List<Node> adjacent = getAdjacentNodes(current, closedSet, target);
 
             // Find the adjacent node with the lowest heuristic cost.
             for (Node neighbor : adjacent) {
@@ -536,7 +580,7 @@ public class ProbAgent extends Agent {
 	 * @param closedSet
 	 * @return The adjacent nodes
 	 */
-	private List<Node> getAdjacentNodes(Node current, List<Node> closedSet) {
+	private List<Node> getAdjacentNodes(Node current, List<Node> closedSet, Node dest) {
 		List<Node> adjacent = new ArrayList<Node>();
 		
 		for (int i = -1; i <=1; i++) {
@@ -550,7 +594,8 @@ public class ProbAgent extends Agent {
 				if (!currentState.inBounds(x, y)
 						|| board.getHasTree(x, y)
 						|| peasantAt(x,y)
-						|| board.getTowerProbability(x, y) == 1) {
+						|| board.getTowerProbability(x, y) == 1
+						|| isTownHallAt(x, y, dest)) {
 					continue;
 				}
 				Node node = new Node(x, y, getHitProbability(x, y), current);
@@ -571,6 +616,29 @@ public class ProbAgent extends Agent {
 		return adjacent;
 	}
 	
+	/**
+	 * If the destination is not the townhall, then we don't want to include that square in our search
+	 * @param x
+	 * @param y
+	 * @return True if the townhall is at that location AND we aren't traveling to it
+	 */
+	private boolean isTownHallAt(int x, int y, Node dest) {
+		if (x == dest.getX() && y == dest.getY()) {
+			return false;
+		}
+		
+		if (currentState.isUnitAt(x, y)) {
+			int unitID = currentState.unitAt(x, y);
+        	
+            String unitName = currentState.getUnit(unitID).getTemplateView().getName();
+            if(unitName.equalsIgnoreCase("Townhall")) {
+            	return true;
+            }
+		}
+	
+		return false;
+	}
+	
 	private boolean peasantAt(int x, int y) {
 		Set<Integer> keys = peasantLocations.keySet();
 		for (Integer id : keys) {
@@ -581,7 +649,6 @@ public class ProbAgent extends Agent {
 		}
 		return false;
 	}
-
 
 	public static String getUsage() {
 		return "Determines the location of enemy towers and avoids them in order to collect 2000 gold.";

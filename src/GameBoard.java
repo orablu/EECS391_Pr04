@@ -1,5 +1,18 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 
-public class GameBoard {
+
+public class GameBoard implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -8930067576274327133L;
 	private float towerProbability[][];
 	private int visits[][];
 	private int hits[][];
@@ -84,5 +97,52 @@ public class GameBoard {
 			}
 			System.out.println();
 		}
+	}
+	
+	public void serializeGameBoard(String saveName) {
+		try {
+			File dir = new File("SavedBoards");
+			dir.mkdir();
+			   
+			FileOutputStream fout = new FileOutputStream("SavedBoards\\" + saveName);
+			ObjectOutputStream oos = new ObjectOutputStream(fout);   
+			oos.writeObject(this);
+			oos.close();
+			System.out.println("Saved board");
+	 
+		   } catch (FileNotFoundException e1){
+			   System.err.println("Could not create location to save board");
+			   e1.printStackTrace();
+		   } catch (IOException e2) {
+			   System.err.println("Could not save board");
+			   e2.printStackTrace();
+		   }
+		
+	}
+	
+	public static GameBoard loadGameBoard(String name) {
+		GameBoard gameBoard;
+		 
+		   try {
+			   
+			   FileInputStream fin = new FileInputStream("SavedBoards\\" + name);
+			   ObjectInputStream ois = new ObjectInputStream(fin);
+			   gameBoard = (GameBoard) ois.readObject();
+			   ois.close();
+			   
+			   System.out.println("Loaded previous board");
+			   return gameBoard;
+	 
+		   } catch (FileNotFoundException e){
+			   System.out.println("No existing board to load");
+		   } catch (IOException e) {
+			   System.err.println("Could not load board");
+			   e.printStackTrace();
+		   } catch (ClassNotFoundException e) {
+			   System.err.println("Could not find specified class");
+			   e.printStackTrace();
+		   }
+		   
+		   return null;
 	}
 }
