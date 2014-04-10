@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.Agent;
@@ -116,8 +117,17 @@ public class ProbAgent extends Agent {
 			}
 		}
 		
+		if (peasants.size() > peasantLocations.keySet().size()) {
+			System.out.println("Peasant has been killed!");
+//			List<Integer> currentPeasantIds = new ArrayList<Integer>();
+//			for (UnitView peasant : peasants) {
+//				currentPeasantIds.add(peasant.getID());
+//			}
+		}
+		
 		// Build a new peasant if we have lost any
 		if (peasants.size() < startingPeasants && currentGold >= peasants.get(0).getTemplateView().getGoldCost()) {
+			
 			int townhallID = townhalls.get(0).getID();
 			int peasantTemplateID = currentState.getTemplate(playernum, "Peasant").getID();
 			System.out.println("Making new peasant");
@@ -125,28 +135,25 @@ public class ProbAgent extends Agent {
 		}
 		
 		// Find all the peasants that have taken damage
-		List<UnitView> hitList = new ArrayList<UnitView>();
 		for (UnitView peasant : peasants) {
 			int x = peasant.getXPosition();
 			int y = peasant.getYPosition();
 			
 			updatePeasantViewRange(x, y);
 			board.incrementVisits(x, y);
-			System.out.println("Visits incremented");
 			if (!peasantHealth.containsKey(peasant.getID())) {
 				peasantHealth.put(peasant.getID(), peasant.getHP());
 				peasantLocations.put(peasant.getID(), new Pair<Integer, Integer>(peasant.getXPosition(), peasant.getYPosition()));
 			}
 			
-			if (peasantHealth.get(peasant.getID()) < peasant.getHP()) {
+			if (peasantHealth.get(peasant.getID()) > peasant.getHP()) {
+				// TODO sometimes detecting a hit when it shouldn't
 				System.out.println("Peasant " + peasant.getID() + " has been hit!");
-				hitList.add(peasant);
 				board.incrementHits(x, y);
 				updateFromHit(x, y, true);
 			} else {
 				updateFromHit(x, y, false);
 			}
-			System.out.println("Probabilities updated");
 		}
 		
 		for (UnitView peasant : peasants) {
@@ -157,14 +164,14 @@ public class ProbAgent extends Agent {
 					Action a = Action.createCompoundGather(peasant.getID(), currentState.resourceAt(estGoldMineLocation.getX(), estGoldMineLocation.getY()));
 					builder.put(peasant.getID(), a);
 				} else {
-					System.out.println("Moving towards goldmine!");
 					List<Pair<Integer, Integer>> bestPath = getBestPath(new Pair<Integer, Integer>(peasant.getXPosition(), peasant.getYPosition()), estGoldMineLocation);
 					Pair<Integer, Integer> nextStep = bestPath.get(0);
 					
 					Direction direction = getDirection(nextStep.getX() - peasant.getXPosition(), nextStep.getY() - peasant.getYPosition());
-					System.out.println("Peasant " + peasant.getID() + " moving " + direction);
 					Action a = Action.createPrimitiveMove(peasant.getID(), direction);
 					builder.put(peasant.getID(), a);
+					
+					peasantLocations.put(peasant.getID(), new Pair<Integer, Integer>(nextStep.getX(), nextStep.getY()));
 				}
 			} else {
 				if (isAdjacent(peasant.getXPosition(), peasant.getYPosition(), townhalls.get(0).getXPosition(), townhalls.get(0).getYPosition())) {
@@ -172,14 +179,14 @@ public class ProbAgent extends Agent {
 					Action a = Action.createCompoundDeposit(peasant.getID(), townhalls.get(0).getID());
 					builder.put(peasant.getID(), a);
 				} else {
-					System.out.println("Moving towards townhall!");
 					List<Pair<Integer, Integer>> bestPath = getBestPath(new Pair<Integer, Integer>(peasant.getXPosition(), peasant.getYPosition()),
 							new Pair<Integer, Integer>(townhalls.get(0).getXPosition(), townhalls.get(0).getYPosition()));
 					Pair<Integer, Integer> nextStep = bestPath.get(0);
 					Direction direction = getDirection(nextStep.getX() - peasant.getXPosition(), nextStep.getY() - peasant.getYPosition());
-					System.out.println("Peasant " + peasant.getID() + " moving " + direction);
 					Action a = Action.createPrimitiveMove(peasant.getID(), direction);
 					builder.put(peasant.getID(), a);
+					
+					peasantLocations.put(peasant.getID(), new Pair<Integer, Integer>(nextStep.getX(), nextStep.getY()));
 				}
 			}
 		}
@@ -212,7 +219,7 @@ public class ProbAgent extends Agent {
         } else if (x == 1 && y == 1) {
             return Direction.SOUTHEAST;
         } else {
-            System.out.println("Something bad happened while calculating direction");
+            System.out.printf("Something bad happened while calculating direction!!! X:%dY:%d\n", x, y);
             return null;
         }
     }
@@ -235,6 +242,7 @@ public class ProbAgent extends Agent {
 		if (currentState.isResourceAt(x, y)) {
         	ResourceView resource = currentState.getResourceNode(currentState.resourceAt(x, y));
         	if(resource.getType().equals(ResourceNode.Type.GOLD_MINE)) {
+//        		System.out.printf("FOUND GOLDMINE AT %d,%d\n", x, y);
         		foundGoldMine = true;
         		estGoldMineLocation = new Pair<Integer, Integer>(x, y);
         	} else if (resource.getType().equals(ResourceNode.Type.TREE)) {
@@ -252,8 +260,37 @@ public class ProbAgent extends Agent {
             	board.setTowerProbability(x, y, 0);
             }
         }
+		
+		if (!foundGoldMine && board.getSeen(estGoldMineLocation.getX(), estGoldMineLocation.getY())) {
+			//XXX
+			System.out.printf("No gold mine at %d,%d\n", estGoldMineLocation.getX(), estGoldMineLocation.getY());
+			updateGoldMineEstimate();
+		}
 	}
 	
+	/**
+	 * Finds the closest unseen square to the original estimated goldmine location
+	 * @param x
+	 * @param y
+	 */
+	private void updateGoldMineEstimate() {
+		int x = currentState.getXExtent() - PEASANT_RANGE;
+	    int y = PEASANT_RANGE;
+		for (int range = 1; range < Math.max(currentState.getXExtent(), currentState.getYExtent()); range++) {
+			for (int i = x - range; i <= x + range; i++) {
+				for (int j = y - range; j <= y + range; j++) {
+					if (currentState.inBounds(i, j) && !board.getSeen(i, j)) {
+						estGoldMineLocation = new Pair<Integer, Integer>(i, j);
+						//XXX
+						System.out.printf("New gold mine estimate at %d,%d\n", estGoldMineLocation.getX(), estGoldMineLocation.getY());
+						return;
+					}
+				}
+			}
+		}
+	}
+
+
 	private float getHitProbability(int x, int y) {
 		float probability = 0;
 		
@@ -270,30 +307,30 @@ public class ProbAgent extends Agent {
 		return probability * TOWER_FIRE_RATE;
 	}
 	
-	private void updateProbabilities(Pair<Integer, Integer> location, boolean hit) {
-		
-		if (hit) {
-			for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
-				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
-					int x = location.getX() + i;
-					int y = location.getY() + j;
-					if(currentState.inBounds(x, y) && !board.getSeen(x, y)) {
-						// TODO
-					}
-				}
-			}
-		} else {
-			for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
-				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
-					int x = location.getX() + i;
-					int y = location.getY() + j;
-					if(currentState.inBounds(x, y) && !board.getSeen(x, y)) {
-						// TODO
-					}
-				}
-			}
-		}
-	}
+//	private void updateProbabilities(Pair<Integer, Integer> location, boolean hit) {
+//		
+//		if (hit) {
+//			for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
+//				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
+//					int x = location.getX() + i;
+//					int y = location.getY() + j;
+//					if(currentState.inBounds(x, y) && !board.getSeen(x, y)) {
+//						// TODO
+//					}
+//				}
+//			}
+//		} else {
+//			for(int i = -TOWER_RANGE; i <= TOWER_RANGE; i++) {
+//				for(int j = -TOWER_RANGE; j <= TOWER_RANGE; j++) {
+//					int x = location.getX() + i;
+//					int y = location.getY() + j;
+//					if(currentState.inBounds(x, y) && !board.getSeen(x, y)) {
+//						// TODO
+//					}
+//				}
+//			}
+//		}
+//	}
 
 	private static final float ACCURACY = 0.75f;
 	private void updateFromHit(int x, int y, boolean hit) {
@@ -346,12 +383,13 @@ public class ProbAgent extends Agent {
 
 	private List<Pair<Integer, Integer>> getBestPath(Pair<Integer, Integer> curLocation, Pair<Integer, Integer> dest) {
 		List<Pair<Integer, Integer>> path =  new LinkedList<Pair<Integer, Integer>>();
-		// TODO: do something here
+		
 		
 		Node current = new Node(curLocation.getX(), curLocation.getY(), getHitProbability(curLocation.getX(), curLocation.getY()));
 		Node target = new Node(dest.getX(), dest.getY(), getHitProbability(dest.getX(), dest.getY()));
 		List<Node> openSet = new ArrayList<>();
         List<Node> closedSet = new ArrayList<>();
+        
         
         while (true) {
             openSet.remove(current);
@@ -382,7 +420,7 @@ public class ProbAgent extends Agent {
                 System.out.printf("Target (%d, %d) is unreachable from position (%d, %d).\n",
                                 target.getX(), target.getY(), curLocation.getX(), curLocation.getY());
                 return null;
-            } else if (isAdjacent(current, target)) {
+            } else if (/*isAdjacent(current, target)*/ current.equals(target)) {
                 break;
             }
 
@@ -408,6 +446,17 @@ public class ProbAgent extends Agent {
         
         if (path.size() > 1) {
         	path.remove(0);
+        }
+        
+        //XXX
+        if (path.get(0).getX() == current.getX()
+        		&& path.get(0).getY() == current.getY()) {
+        	System.out.println("BAD PATH OF SIZE " + path.size());
+        	System.out.printf("Start at %d,%d\n", current.getX(), current.getY());
+        	System.out.printf("Destination %d,%d\n", dest.getX(), dest.getY());
+        	for (Pair<Integer, Integer> pair : path) {
+        		System.out.printf("\t%d,%d\n", pair.getX(), pair.getY());
+        	}
         }
         
 		return path;
@@ -440,7 +489,8 @@ public class ProbAgent extends Agent {
 				int x = current.getX() + i;
 				int y = current.getY() + j;
 				if (!currentState.inBounds(x, y)
-						|| board.getHasTree(x, y)) {
+						|| board.getHasTree(x, y)
+						|| peasantAt(x,y)) {
 					continue;
 				}
 				Node node = new Node(x, y, getHitProbability(x, y), current);
@@ -461,6 +511,18 @@ public class ProbAgent extends Agent {
 		return adjacent;
 	}
 	
+	private boolean peasantAt(int x, int y) {
+		Set<Integer> keys = peasantLocations.keySet();
+		for (Integer id : keys) {
+			Pair<Integer, Integer> pair = peasantLocations.get(id);
+			if (x == pair.getX() && y == pair.getY()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+
 	public static String getUsage() {
 		return "Determines the location of enemy towers and avoids them in order to collect 2000 gold.";
 	}
