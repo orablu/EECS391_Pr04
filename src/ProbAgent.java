@@ -233,7 +233,7 @@ public class ProbAgent extends Agent {
 		int toy   = Math.min(old[0].length, y + TOWER_RANGE);
 		for (int r = fromx; r < tox; r++) {
 			for (int c = fromy; c < toy; c++) {
-				if (inView(r, c, x, y)) continue; // Only need to update out-of-view cells.
+				if (map.getSeen(r, c)) continue; // Only need to update out-of-view cells.
 
 				float phn, pht;
 				if (hit) {
@@ -268,8 +268,7 @@ public class ProbAgent extends Agent {
 				}
 
 				// P(T|H) = P(H|T)*P(T)/(P(H|T)*P(T)+P(H|N)*P(N))
-				map.setTowerProbability(r, c,
-					pht * old[r][c] / (pht * old[r][c] + phn * (1 - old[r][c])));
+				map.setTowerProbability(r, c, pht * old[r][c] / (pht * old[r][c] + phn * (1 - old[r][c])));
 			}
 		}
 	}
@@ -292,12 +291,6 @@ public class ProbAgent extends Agent {
 		}
 
 		return 1f - pNone;
-	}
-
-	private boolean inView(int vx, int vy, int x, int y) {
-		int ax = Math.abs(vx - x);
-		int ay = Math.abs(vy - y);
-		return ax < PEASANT_RANGE && ay < PEASANT_RANGE;
 	}
 	
 	private List<Pair<Integer, Integer>> getBestPath(float[][] map, Pair<Integer, Integer> curLocation, Pair<Integer, Integer> dest) {
